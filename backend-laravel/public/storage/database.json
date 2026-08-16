@@ -1,0 +1,53 @@
+{
+    "users": [
+        {
+            "name": "Super Admin",
+            "email": "admin@ngalagu.com",
+            "password": "$2y$12$w8Y\/k158jSdHqbM7YwsMqu9vQalo7Ngz9ahX8QFcJJu3nWoEhbtUK",
+            "id": 1,
+            "created_at": "2026-08-15 15:45:28"
+        },
+        {
+            "name": "rteriz23",
+            "email": "ruperzki23@gmail.com",
+            "password": "$2y$12$SIxI5XszDufztmRkWyyPQuc40MVWNg52ZbyWdGFL5\/DjPgsLtVkU2",
+            "id": 2,
+            "created_at": "2026-08-15 16:05:16"
+        }
+    ],
+    "sessions": [
+        {
+            "user_id": 1,
+            "token": "bec8d8ff94fbc088f0345ca967887a883c0bb6db2ad53d78d23ee23677acc93d",
+            "id": 1,
+            "created_at": "2026-08-15 15:45:28"
+        },
+        {
+            "user_id": 2,
+            "token": "d92ea869c097521e36fbc5bdebf4ee7b90310810ba5127358a95ffff786fef29",
+            "id": 2,
+            "created_at": "2026-08-15 16:05:16"
+        },
+        {
+            "user_id": 2,
+            "token": "cedac624c18d7444b03e7eda7b21b28f6c1bacd4fecdf7da7a237f2281b3fd5c",
+            "id": 3,
+            "created_at": "2026-08-15 16:17:28"
+        },
+        {
+            "user_id": 2,
+            "token": "435752a86fa30dc6b5cac34fa5e27cb7c7538307940d79988d9cd02d764be675",
+            "id": 4,
+            "created_at": "2026-08-15 16:18:04"
+        }
+    ],
+    "ip_management": [
+        {
+            "ip_address": "::1",
+            "status": "whitelist",
+            "reason": "manual unban",
+            "id": 1,
+            "created_at": "2026-08-15 15:45:32"
+        }
+    ]
+}
