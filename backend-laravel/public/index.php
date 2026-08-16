@@ -47,6 +47,7 @@ $mockTracks = [
         'youtube_id' => '1y6smkh6c-0', // Actual YT ID
         'lyrics' => "[00:00.00] (Instrumental)\n[00:10.00] Jangan datang lagi jika hanya membuat luka\n[00:15.00] Haruskah aku terus menanti rayuanmu yang tak kunjung pasti...\n[00:22.00] Kau buatku makin terbawa perasaan ini.",
         'genre' => 'Pop',
+        'duration' => 227
     ],
     [
         'id' => 102,
@@ -57,6 +58,7 @@ $mockTracks = [
         'youtube_id' => 'W2ZkO0Npx1I',
         'lyrics' => "[00:00.00] (Intro)\n[00:12.00] Perjalanan membawamu\n[00:18.00] Kini kau telah di sana\n[00:25.00] Semoga kita bertemu lagi di ujung jalan yang indah...",
         'genre' => 'Acoustic',
+        'duration' => 242
     ]
 ];
 
@@ -160,7 +162,8 @@ if ($method === 'POST' && $uri === '/api/v1/recognize') {
             'cover' => 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80', // Mock cover
             'youtube_id' => $music['external_metadata']['youtube']['vid'] ?? 'W2ZkO0Npx1I', // Fallback to Tulus if no YT ID
             'lyrics' => "[00:00.00] (Lirik otomatis belum tersedia untuk lagu ini...)",
-            'genre' => $music['genres'][0]['name'] ?? 'Pop'
+            'genre' => $music['genres'][0]['name'] ?? 'Pop',
+            'duration' => isset($music['duration_ms']) ? (int)($music['duration_ms'] / 1000) : 180
         ];
 
         echo json_encode(['success' => true, 'message' => 'Lagu berhasil diidentifikasi (ACRCloud)!', 'data' => $trackData]);

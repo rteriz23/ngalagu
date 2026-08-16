@@ -13,6 +13,7 @@ class DJAudioManager {
   // Effects nodes
   private delayNode: DelayNode | null = null;
   private feedbackGain: GainNode | null = null;
+  private delayGain: GainNode | null = null;
   private distortionNode: WaveShaperNode | null = null;
   private jedagGain: GainNode | null = null;
   
@@ -20,72 +21,86 @@ class DJAudioManager {
   private stutterInterval: any = null;
 
   // State
-  private isJedagJedug = false;
+  private currentElement: HTMLAudioElement | null = null;
 
   init(audioElement: HTMLAudioElement) {
-    if (this.ctx) {
-      // Reconnect if context already exists
+    if (this.currentElement === audioElement) {
       return;
     }
+    this.currentElement = audioElement;
 
     try {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Analyser node for Jedag-Jedug strobe visualization
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 256;
+
+        // Equalizer filters (3-band EQ)
+        this.lowFilter = this.ctx.createBiquadFilter();
+        this.lowFilter.type = 'lowshelf';
+        this.lowFilter.frequency.value = 250; // Bass frequency limit
+        this.lowFilter.gain.value = 0;
+
+        this.midFilter = this.ctx.createBiquadFilter();
+        this.midFilter.type = 'peaking';
+        this.midFilter.Q.value = 1.0;
+        this.midFilter.frequency.value = 1000; // Midrange
+        this.midFilter.gain.value = 0;
+
+        this.highFilter = this.ctx.createBiquadFilter();
+        this.highFilter.type = 'highshelf';
+        this.highFilter.frequency.value = 4000; // Treble
+        this.highFilter.gain.value = 0;
+
+        // Echo (Delay, Volume Gain & Feedback)
+        this.delayNode = this.ctx.createDelay(1.0);
+        this.delayNode.delayTime.value = 0.35; // 350ms delay
+        this.feedbackGain = this.ctx.createGain();
+        this.feedbackGain.gain.value = 0.0; // feedback amount (starts at 0)
+        this.delayGain = this.ctx.createGain();
+        this.delayGain.gain.value = 0.0; // dry/wet delay mix (starts at 0)
+
+        // Connect delay loop (feedback)
+        this.delayNode.connect(this.feedbackGain);
+        this.feedbackGain.connect(this.delayNode);
+
+        // Distortion
+        this.distortionNode = this.ctx.createWaveShaper();
+        this.distortionNode.curve = this.makeDistortionCurve(0) as any;
+        this.distortionNode.oversample = '4x';
+
+        // Jedag Stutter Gain Node
+        this.jedagGain = this.ctx.createGain();
+        this.jedagGain.gain.value = 1.0;
+
+        // Connect DSP Chain:
+        // EQ (Low -> Mid -> High) -> Distortion -> Jedag Gain -> Analyser -> Destination
+        this.lowFilter.connect(this.midFilter);
+        this.midFilter.connect(this.highFilter);
+        this.highFilter.connect(this.distortionNode);
+        
+        // Direct path
+        this.distortionNode.connect(this.jedagGain);
+
+        // Parallel delay node path
+        this.distortionNode.connect(this.delayNode);
+        this.delayNode.connect(this.delayGain);
+        this.delayGain.connect(this.jedagGain);
+
+        this.jedagGain.connect(this.analyser);
+        this.analyser.connect(this.ctx.destination);
+      }
+
+      if (this.source) {
+        try {
+          this.source.disconnect();
+        } catch (e) {}
+      }
+
       this.source = this.ctx.createMediaElementSource(audioElement);
-      
-      // Analyser node for Jedag-Jedug strobe visualization
-      this.analyser = this.ctx.createAnalyser();
-      this.analyser.fftSize = 256;
-
-      // Equalizer filters (3-band EQ)
-      this.lowFilter = this.ctx.createBiquadFilter();
-      this.lowFilter.type = 'lowshelf';
-      this.lowFilter.frequency.value = 250; // Bass frequency limit
-      this.lowFilter.gain.value = 0;
-
-      this.midFilter = this.ctx.createBiquadFilter();
-      this.midFilter.type = 'peaking';
-      this.midFilter.Q.value = 1.0;
-      this.midFilter.frequency.value = 1000; // Midrange
-      this.midFilter.gain.value = 0;
-
-      this.highFilter = this.ctx.createBiquadFilter();
-      this.highFilter.type = 'highshelf';
-      this.highFilter.frequency.value = 4000; // Treble
-      this.highFilter.gain.value = 0;
-
-      // Echo (Delay & Feedback)
-      this.delayNode = this.ctx.createDelay(1.0);
-      this.delayNode.delayTime.value = 0.35; // 350ms delay
-      this.feedbackGain = this.ctx.createGain();
-      this.feedbackGain.gain.value = 0.0; // feedback amount (starts at 0)
-
-      // Connect delay loop
-      this.delayNode.connect(this.feedbackGain);
-      this.feedbackGain.connect(this.delayNode);
-
-      // Distortion
-      this.distortionNode = this.ctx.createWaveShaper();
-      this.distortionNode.curve = this.makeDistortionCurve(0);
-      this.distortionNode.oversample = '4x';
-
-      // Jedag Stutter Gain Node
-      this.jedagGain = this.ctx.createGain();
-      this.jedagGain.gain.value = 1.0;
-
-      // Connect DSP Chain:
-      // Source -> EQ (Low -> Mid -> High) -> Distortion -> Delay Mixer -> Jedag Gain -> Analyser -> Destination
-      this.source.connect(this.lowFilter);
-      this.lowFilter.connect(this.midFilter);
-      this.midFilter.connect(this.highFilter);
-      this.highFilter.connect(this.distortionNode);
-      
-      // Parallel delay node path
-      this.distortionNode.connect(this.jedagGain);
-      this.distortionNode.connect(this.delayNode);
-      this.delayNode.connect(this.jedagGain);
-
-      this.jedagGain.connect(this.analyser);
-      this.analyser.connect(this.ctx.destination);
+      this.source.connect(this.lowFilter!);
     } catch (e) {
       console.error('Failed to initialize Web Audio API Context', e);
     }
@@ -111,6 +126,9 @@ class DJAudioManager {
   }
 
   setEcho(enabled: boolean) {
+    if (this.delayGain) {
+      this.delayGain.gain.setValueAtTime(enabled ? 0.45 : 0.0, this.ctx?.currentTime || 0);
+    }
     if (this.feedbackGain) {
       this.feedbackGain.gain.setValueAtTime(enabled ? 0.45 : 0.0, this.ctx?.currentTime || 0);
     }
@@ -118,13 +136,12 @@ class DJAudioManager {
 
   setDistortion(enabled: boolean) {
     if (this.distortionNode) {
-      this.distortionNode.curve = enabled ? this.makeDistortionCurve(80) : this.makeDistortionCurve(0);
+      this.distortionNode.curve = (enabled ? this.makeDistortionCurve(80) : this.makeDistortionCurve(0)) as any;
     }
   }
 
   // Jedag-Jedug Mode: Heavy Bass Boost + Fast Rhythmic Gate + Strobe visualizer
   setJedagJedug(enabled: boolean) {
-    this.isJedagJedug = enabled;
     if (enabled) {
       // 1. Heavy bass boost (gain of +18dB at bass shelf)
       if (this.lowFilter) this.lowFilter.gain.value = 18;

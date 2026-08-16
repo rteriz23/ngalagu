@@ -84,6 +84,7 @@ class AudioFingerprintService
                 'preview_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
                 'lyrics' => "Jangan datang lagi jika hanya membuat luka\nHaruskah aku terus menanti rayuanmu...",
                 'platform_id' => 'spotify_track_01',
+                'duration' => 227
             ],
             [
                 'title' => 'Hati-Hati di Jalan',
@@ -93,6 +94,7 @@ class AudioFingerprintService
                 'preview_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
                 'lyrics' => "Perjalanan membawamu\nKini kau telah di sana\nSemoga kita bertemu lagi di ujung jalan...",
                 'platform_id' => 'spotify_track_02',
+                'duration' => 242
             ],
             [
                 'title' => 'Komang',
@@ -102,6 +104,7 @@ class AudioFingerprintService
                 'preview_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
                 'lyrics' => "Sebab kau terlalu indah dari sekedar kata\nDunia berhenti sejenak saat kau tersenyum...",
                 'platform_id' => 'spotify_track_03',
+                'duration' => 222
             ],
             [
                 'title' => 'Sial',
@@ -111,6 +114,7 @@ class AudioFingerprintService
                 'preview_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
                 'lyrics' => "Sialnya hidupku terlanjur mencintai kamu\nBagaimana bisa kau berpaling begitu saja...",
                 'platform_id' => 'spotify_track_04',
+                'duration' => 243
             ]
         ];
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
+import { useAuthStore } from '../store/authStore';
 import { UploadModal } from '../components/UploadModal';
 import { ArrowLeft, Music, Heart, Disc, UploadCloud, Play } from 'lucide-react';
 import axios from 'axios';
@@ -10,6 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 export const Library: React.FC = () => {
   const navigate = useNavigate();
   const { setTrack, setQueue } = usePlayerStore();
+  const { token } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'tracks' | 'albums' | 'uploads'>('tracks');
   
   const [likedTracks, setLikedTracks] = useState<any[]>([]);
@@ -21,15 +23,9 @@ export const Library: React.FC = () => {
 
   const fetchLibraryData = async () => {
     setIsLoading(true);
-    const authData = localStorage.getItem('auth-storage');
-    let token = '';
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData);
-        token = parsed?.state?.token || '';
-      } catch (err) {
-        console.error(err);
-      }
+    if (!token) {
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -51,7 +47,8 @@ export const Library: React.FC = () => {
 
   useEffect(() => {
     fetchLibraryData();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handlePlayTrack = (track: any) => {
     // Map to player store format

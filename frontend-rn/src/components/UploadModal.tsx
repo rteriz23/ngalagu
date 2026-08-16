@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface UploadModalProps {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUploadSuccess }) => {
+  const { token } = useAuthStore();
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [lyrics, setLyrics] = useState('');
@@ -30,16 +32,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     setIsLoading(true);
     setError('');
 
-    const authData = localStorage.getItem('auth-storage');
-    let token = '';
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData);
-        token = parsed?.state?.token || '';
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    // Token is retrieved from the useAuthStore hook at the component level
 
     const formData = new FormData();
     formData.append('title', title);

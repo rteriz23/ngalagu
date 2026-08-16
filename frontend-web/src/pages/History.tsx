@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
+import { useAuthStore } from '../store/authStore';
 import { ArrowLeft, Clock, Play } from 'lucide-react';
 import axios from 'axios';
 
@@ -9,20 +10,15 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 export const History: React.FC = () => {
   const navigate = useNavigate();
   const { setTrack, setQueue } = usePlayerStore();
+  const { token } = useAuthStore();
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
-      const authData = localStorage.getItem('auth-storage');
-      let token = '';
-      if (authData) {
-        try {
-          const parsed = JSON.parse(authData);
-          token = parsed?.state?.token || '';
-        } catch (err) {
-          console.error(err);
-        }
+      if (!token) {
+        setIsLoading(false);
+        return;
       }
 
       try {
@@ -39,7 +35,8 @@ export const History: React.FC = () => {
       }
     };
     fetchHistory();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handlePlayTrack = (track: any) => {
     // Map history track to player store format

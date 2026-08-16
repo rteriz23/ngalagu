@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
+import { useAuthStore } from '../../store/authStore';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Mic2, Bluetooth, Heart, Sliders, Zap } from 'lucide-react';
 import { audioManager } from '../../lib/audioManager';
 import axios from 'axios';
@@ -9,6 +10,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 export const GlobalPlayer: React.FC = () => {
   const { currentTrack, isPlaying, setIsPlaying, playNext, playPrev, setProgress, progress, currentTime, duration } = usePlayerStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const accumulatedTimeRef = useRef<number>(0);
   
   // UI states
   const [showLyrics, setShowLyrics] = useState(false);
@@ -19,7 +21,7 @@ export const GlobalPlayer: React.FC = () => {
   
   // Likes & History states
   const [isLiked, setIsLiked] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
+  const { token: authToken } = useAuthStore();
 
   // DJ Mixer states
   const [showDjMixer, setShowDjMixer] = useState(false);
@@ -33,19 +35,6 @@ export const GlobalPlayer: React.FC = () => {
 
   // Beat intensity for Jedag-Jedug strobe animations
   const [bassIntensity, setBassIntensity] = useState(0);
-
-  // Retrieve auth token
-  useEffect(() => {
-    const authData = localStorage.getItem('auth-storage');
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData);
-        setAuthToken(parsed?.state?.token || null);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, []);
 
   // Check if track is liked
   useEffect(() => {
@@ -82,7 +71,8 @@ export const GlobalPlayer: React.FC = () => {
             artist: currentTrack.artist,
             cover: currentTrack.cover || '',
             preview_url: currentTrack.preview_url || '',
-            youtube_id: currentTrack.youtube_id || ''
+            youtube_id: currentTrack.youtube_id || '',
+            duration: currentTrack.duration || 0
           },
           { headers: { Authorization: `Bearer ${authToken}` } }
         );
@@ -105,7 +95,8 @@ export const GlobalPlayer: React.FC = () => {
           artist: currentTrack.artist,
           cover: currentTrack.cover || '',
           preview_url: currentTrack.preview_url || '',
-          youtube_id: currentTrack.youtube_id || ''
+          youtube_id: currentTrack.youtube_id || '',
+          duration: currentTrack.duration || 0
         },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
@@ -131,6 +122,8 @@ export const GlobalPlayer: React.FC = () => {
   // Create/update audio element when track changes
   useEffect(() => {
     if (!currentTrack) return;
+
+    accumulatedTimeRef.current = 0;
 
     // Reset and fetch real lyrics
     setFetchedLyrics('Mencari lirik...');
@@ -168,32 +161,63 @@ export const GlobalPlayer: React.FC = () => {
 
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.crossOrigin = "anonymous";
       audioRef.current.src = audioSrc;
       audioRef.current.load();
       setupAudioEngine(audioRef.current);
       if (isPlaying) {
         audioRef.current.play().catch(() => {});
+        const ctx = audioManager.getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
       }
     } else {
-      const audio = new Audio(audioSrc);
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      audio.src = audioSrc;
       audio.volume = volume;
       audioRef.current = audio;
       
       setupAudioEngine(audio);
 
       audio.addEventListener('ended', () => {
-        playNext();
+        const targetDuration = currentTrack.duration || 180;
+        const nextAccumulated = accumulatedTimeRef.current + audio.duration;
+        if (audio.duration > 0 && audio.duration < targetDuration && nextAccumulated < targetDuration) {
+          accumulatedTimeRef.current = nextAccumulated;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        } else {
+          accumulatedTimeRef.current = 0;
+          playNext();
+        }
       });
 
       audio.addEventListener('timeupdate', () => {
-        if (audio.duration > 0) {
-          const prog = (audio.currentTime / audio.duration) * 100;
-          setProgress(prog, audio.currentTime, audio.duration);
+        const targetDuration = currentTrack.duration || 180;
+        const virtualCurrentTime = accumulatedTimeRef.current + audio.currentTime;
+        const displayCurrentTime = Math.min(virtualCurrentTime, targetDuration);
+        
+        const isPreview = audio.duration > 0 && audio.duration < targetDuration;
+        const usedDuration = isPreview ? targetDuration : (audio.duration || targetDuration);
+
+        const prog = (displayCurrentTime / usedDuration) * 100;
+        setProgress(prog, displayCurrentTime, usedDuration);
+
+        if (isPreview && virtualCurrentTime >= targetDuration) {
+          accumulatedTimeRef.current = 0;
+          audio.pause();
+          playNext();
         }
       });
 
       if (isPlaying) {
         audio.play().catch(() => {});
+        const ctx = audioManager.getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,6 +248,10 @@ export const GlobalPlayer: React.FC = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.play().catch(() => {});
+      const ctx = audioManager.getAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
     } else {
       audioRef.current.pause();
     }
@@ -290,8 +318,20 @@ export const GlobalPlayer: React.FC = () => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    audioRef.current.currentTime = percentage * audioRef.current.duration;
-  }, []);
+    
+    const targetDuration = currentTrack?.duration || 180;
+    const targetTime = percentage * targetDuration;
+    const audioDuration = audioRef.current.duration;
+
+    if (audioDuration > 0 && audioDuration < targetDuration) {
+      const loopCount = Math.floor(targetTime / audioDuration);
+      accumulatedTimeRef.current = loopCount * audioDuration;
+      audioRef.current.currentTime = targetTime % audioDuration;
+    } else {
+      accumulatedTimeRef.current = 0;
+      audioRef.current.currentTime = targetTime;
+    }
+  }, [currentTrack?.duration]);
 
   const handleBluetoothConnect = async () => {
     try {

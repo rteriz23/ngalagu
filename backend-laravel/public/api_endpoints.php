@@ -67,7 +67,18 @@ if ($method === 'POST' && $uri === '/api/v1/login') {
 // =======================
 // AUTH MIDDLEWARE FOR PROTECTED ROUTES
 // =======================
-$isAuthRoute = in_array($uri, ['/api/v1/recognize', '/api/v1/history', '/api/v1/profile', '/api/v1/search', '/api/v1/admin/ips']);
+$isAuthRoute = in_array($uri, [
+    '/api/v1/recognize', 
+    '/api/v1/history', 
+    '/api/v1/profile', 
+    '/api/v1/search', 
+    '/api/v1/upload',
+    '/api/v1/my-tracks',
+    '/api/v1/tracks/like',
+    '/api/v1/tracks/liked',
+    '/api/v1/albums/like',
+    '/api/v1/albums/liked'
+]) || str_starts_with($uri, '/api/v1/admin/ips');
 $currentUser = null;
 
 if ($isAuthRoute) {
@@ -298,6 +309,7 @@ if ($method === 'POST' && $uri === '/api/v1/tracks/like') {
         $db->deleteBy('liked_tracks', 'id', $existing['id']);
         echo json_encode(['success' => true, 'liked' => false, 'message' => 'Lagu dihapus dari favorit.']);
     } else {
+        $trackDuration = (int)($input['duration'] ?? 0);
         $db->insert('liked_tracks', [
             'user_id' => $currentUser['id'],
             'track_id' => $trackId,
@@ -305,7 +317,8 @@ if ($method === 'POST' && $uri === '/api/v1/tracks/like') {
             'artist' => $trackArtist,
             'cover' => $trackCover,
             'preview_url' => $trackPreview,
-            'youtube_id' => $trackYoutubeId
+            'youtube_id' => $trackYoutubeId,
+            'duration' => $trackDuration
         ]);
         echo json_encode(['success' => true, 'liked' => true, 'message' => 'Lagu ditambahkan ke favorit.']);
     }
@@ -421,6 +434,7 @@ if ($method === 'POST' && $uri === '/api/v1/history') {
         }
     }
 
+    $trackDuration = (int)($input['duration'] ?? 0);
     $db->insert('history', [
         'user_id' => $currentUser['id'],
         'track_id' => $trackId,
@@ -429,6 +443,7 @@ if ($method === 'POST' && $uri === '/api/v1/history') {
         'cover' => $trackCover,
         'preview_url' => $trackPreview,
         'youtube_id' => $trackYoutubeId,
+        'duration' => $trackDuration,
         'created_at' => date('Y-m-d H:i:s')
     ]);
 
